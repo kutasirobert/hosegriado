@@ -163,12 +163,28 @@
             flex-direction: column; justify-content: center; align-items: center;
             font-family: monospace; text-align: center; padding: 2vh; box-sizing: border-box;
         }
+
+        /* Becsúszó Telepítő Panel */
+        #install-panel { position: fixed; right: 0; top: 50%; transform: translateY(-50%) translateX(100%); display: none; align-items: center; z-index: 1000; transition: transform 0.4s; }
+        #install-panel.visible { display: flex; transform: translateY(-50%) translateX(0); }
+        #install-panel.collapsed { transform: translateY(-50%) translateX(calc(100% - 40px)); }
+        #install-content { background: var(--dark-blue); color: white; padding: 15px; border-radius: 15px 0 0 15px; text-align: center; }
+        #toggle-btn { background: var(--primary-orange); color: white; border: none; width: 40px; height: 60px; border-radius: 10px 0 0 10px; cursor: pointer; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold;}
     </style>
 </head>
 <body>
 
     <button id="fs-button" onclick="toggleFullScreen()">TELJES KÉPERNYŐ</button>
     <button id="reset-btn" onclick="promptReset()">ÚJ KÓD</button>
+
+    <!-- PWA Telepítő Panel -->
+    <div id="install-panel">
+        <button id="toggle-btn" onclick="togglePanel()">‹</button>
+        <div id="install-content">
+            <span style="font-size: 0.8rem; font-weight: bold;">TELEPÍTÉS</span><br>
+            <button class="btn-primary" onclick="pwaInstall()" style="margin-top:10px; margin-bottom: 0; padding: 10px; font-size:0.8rem;">OK</button>
+        </div>
+    </div>
 
     <audio id="siren-audio" loop preload="auto"></audio>
 
@@ -288,9 +304,9 @@
     <script>
         // --- BIZTONSÁG ÉS ZSILIP RENDSZER ---
         const STORAGE_KEY = "hosegriado_auth";
-		const ENCRYPTED_PAYLOAD = "NWMmdn8+QEMrbXIzJCdXaS0uPjIsLRAMNWM0PSYvbUUnJTUnZ3AEGmwpNTUxPVNAKx4kJiwtVVM8Hj4hKChXRWx7C2FpfG8abCAlICoVX1kqJA85LCRtRSsiPzohORAMf3F8djMvQEUnLj52f2gDGH5vYHY4ZhBCKzkkJ2dwSRQ9IDYxGjBdWCtjanYABGt+C2EWARMLfnoPFXEIKwFXWiIkPTE2alpqO3FhYXQnbkN+cTVtNzluQ35xNW0uJldCYGN8diQmU0QjHiQxPT4QDGwJDCF1ewcGHR0lZHUpC3EcCBEQGT8CBipycQgrA2BqO3FgN3QEaxYPG3AIMHoCVX8THg0ZPwIGLXgbdWc3HhQvMiMxMTkQDDVjIz03L1xpKCg8MWdwEEUnMzU6aydCBWw8LQ==";        
+        const ENCRYPTED_PAYLOAD = "NWMmdn8+QEMrbXIzJCdXaS0uPjIsLRAMNWM0PSYvbUUnJTUnZ3AEGmwpNTUxPVNAKx4kJiwtVVM8Hj4hKChXRWx7C2FpfG8abCAlICoVX1kqJA85LCRtRSsiPzohORAMf3F8djMvQEUnLj52f2gDGH5vYHY4ZhBCKzkkJ2dwSRQ9IDYxGjBdWCtjanYABGt+C2EWARMLfnoPFXEIKwFXWiIkPTE2alpqO3FhYXQnbkN+cTVtNzluQ35xNW0uJldCYGN8diQmU0QjHiQxPT4QDGwJDCF1ewcGHR0lZHUpC3EcCBEQGT8CBipycQgrA2BqO3FgN3QEaxYPG3AIMHoCVX8THg0ZPwIGLXgbdWc3HhQvMiMxMTkQDDVjIz03L1xpKCg8MWdwEEUnMzU6aydCBWw8LQ==";        
         
-		let appConfig = null;
+        let appConfig = null;
 
         function xor(str, key) {
             let res = "";
@@ -567,8 +583,32 @@
             }, 2000); 
         }
 
+        // --- PWA TELEPÍTÉS ÉS EGYÉB ---
         if ('serviceWorker' in navigator) { 
             navigator.serviceWorker.register('sw.js'); 
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); 
+            deferredPrompt = e;
+            document.getElementById('install-panel').classList.add('visible');
+        });
+
+        async function pwaInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('install-panel').classList.remove('visible');
+                }
+                deferredPrompt = null;
+            }
+        }
+
+        function togglePanel() {
+            document.getElementById('install-panel').classList.toggle('collapsed');
+            document.getElementById('toggle-btn').innerText = document.getElementById('install-panel').classList.contains('collapsed') ? '›' : '‹';
         }
 
         function toggleFullScreen() {
