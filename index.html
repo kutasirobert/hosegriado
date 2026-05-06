@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Hőségriadó</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hőségriadó">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <style>
+        :root {
+            --primary-orange: #e67e22;
+            --danger-red: #c0392b;
+            --safe-green: #27ae60;
+            --dark-blue: #2c3e50;
+            --light-bg: #f8f9fa;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden;
+            background-image: url('background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-color: var(--primary-orange);
+            font-family: 'Segoe UI', sans-serif;
+            transition: background-color 0.3s;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 2vh;
+            box-shadow: 0 1vh 3vh rgba(0,0,0,0.2);
+            padding: 3vh;
+            width: 85%;
+            max-width: 500px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .center-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            width: 100%;
+            padding: 2vh;
+            box-sizing: border-box;
+        }
+
+        .screen { display: none; width: 100%; justify-content: center; }
+        .active-screen { display: flex; }
+
+        h1, h2 { color: var(--dark-blue); margin-top: 0; text-transform: uppercase; }
+
+        button {
+            width: 100%; padding: 2vh; margin-bottom: 2vh;
+            border: none; border-radius: 1.5vh;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0.5vh 1vh rgba(0,0,0,0.1);
+            transition: transform 0.1s, filter 0.2s;
+        }
+        button:active { transform: scale(0.97); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-primary { background-color: var(--primary-orange); color: white; }
+        .btn-danger { background-color: var(--danger-red); color: white; }
+        .btn-safe { background-color: var(--safe-green); color: white; }
+        .btn-dark { background-color: var(--dark-blue); color: white; }
+        .btn-small { padding: 1.5vh; font-size: 1rem; background-color: #bdc3c7; color: var(--dark-blue); }
+
+        input[type="text"] {
+            width: 100%; padding: 2vh; border: 0.3vh solid #bdc3c7;
+            border-radius: 1.5vh; font-size: 1.5rem; text-align: center;
+            box-sizing: border-box; margin-bottom: 2vh; outline: none;
+            text-transform: uppercase;
+        }
+
+        .slider-container { margin: 2vh 0; background: rgba(0,0,0,0.05); padding: 2vh; border-radius: 1.5vh;}
+        input[type="range"] { width: 100%; height: 1.5vh; background: #ddd; border-radius: 1vh; outline: none; margin-bottom: 1vh;}
+        .slider-label { font-weight: bold; color: var(--dark-blue); display: flex; justify-content: space-between; align-items: center; margin-bottom: 1vh;}
+        .slider-val-inline { font-size: 1.5rem; color: var(--danger-red); }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .armed-text { color: var(--danger-red); font-weight: bold; font-size: 1.5rem; animation: pulse 1.5s infinite; margin: 2vh 0; display: none; }
+
+        @keyframes rollAnimation {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(15deg) scale(1.1); }
+            50% { transform: rotate(0deg) scale(1); }
+            75% { transform: rotate(-15deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        
+        #dice-container {
+            display: none;
+            margin: 2vh auto;
+        }
+        
+        .dice-cube {
+            width: 12vh; height: 12vh;
+            background-color: white;
+            color: var(--dark-blue);
+            font-size: 4rem; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 2vh;
+            box-shadow: 0 1vh 2vh rgba(0,0,0,0.3);
+            margin: 0 auto;
+            border: 0.5vh solid var(--dark-blue);
+        }
+        
+        .rolling {
+            animation: rollAnimation 0.3s infinite;
+        }
+
+        @keyframes sirenFlash {
+            0% { background-color: red; }
+            50% { background-color: yellow; }
+            100% { background-color: red; }
+        }
+        .flashing-bg {
+            animation: sirenFlash 0.5s infinite !important;
+            background-image: none !important;
+        }
+        
+        .alarm-text { font-size: 3rem; color: black; font-weight: 900; text-shadow: 0 0 2vh white; line-height: 1.2; margin-bottom: 5vh; white-space: pre-line; }
+
+        #msg { color: var(--danger-red); font-weight: bold; margin-top: 1vh; min-height: 2vh; }
+        .hint { font-size: 0.85rem; color: #7f8c8d; margin-top: 1vh; margin-bottom: 2vh; display: block; line-height: 1.3;}
+        .result-box { padding: 3vh; border-radius: 1.5vh; font-size: 1.5rem; font-weight: bold; margin-bottom: 2vh; display: none; white-space: pre-line;}
+
+        #fs-button { position: fixed; top: 1vh; right: 1vh; background-color: rgba(255,255,255,0.8); color: var(--dark-blue); border: none; padding: 1vh 2vh; border-radius: 1vh; font-size: 0.7rem; z-index: 100; width: auto; font-weight: bold;}
+        #reset-btn { position: fixed; top: 1vh; left: 1vh; background-color: rgba(255,255,255,0.9); color: var(--danger-red); border: 0.3vh solid var(--danger-red); padding: 1vh 2vh; border-radius: 1vh; font-size: 0.7rem; z-index: 100; width: auto; display: none; font-weight: bold;}
+
+        #reset-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 2000;
+            justify-content: center; align-items: center;
+        }
+        #reset-modal .glass-panel { width: 90%; max-width: 400px; }
+
+        /* Rendszerhiba képernyő */
+        #crash-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; color: red; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center;
+            font-family: monospace; text-align: center; padding: 2vh; box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="fs-button" onclick="toggleFullScreen()">TELJES KÉPERNYŐ</button>
+    <button id="reset-btn" onclick="promptReset()">ÚJ KÓD</button>
+
+    <audio id="siren-audio" loop preload="auto"></audio>
+
+    <div id="reset-modal">
+        <div class="glass-panel">
+            <h2 style="color: var(--danger-red);">VIGYÁZAT!</h2>
+            <p>Biztosan új kódot akarsz megadni? Ez kiléptet a jelenlegi játékból!</p>
+            <button class="btn-danger" onclick="executeReset()">Igen, kilépek</button>
+            <button class="btn-dark" onclick="closeResetModal()">Mégse</button>
+        </div>
+    </div>
+
+    <div id="crash-screen">
+        <h1 style="font-size: 3rem; margin-bottom: 1vh;">[!] FATAL ERROR [!]</h1>
+        <p style="font-size: 1.2rem;">Sérült memóriacím vagy hiányzó adatstruktúra.</p>
+        <p style="font-size: 1rem; color: #555;">Kérjük, generáljon érvényes titkosító magot!</p>
+        <button onclick="executeReset()" style="margin-top: 4vh; padding: 2vh; background: red; color: white; border: none; border-radius: 1vh; font-weight: bold; cursor: pointer; width: 80%; max-width: 300px;">RENDSZER ÚJRAINDÍTÁSA</button>
+    </div>
+
+    <div class="center-wrapper">
+        
+        <div id="screen-login" class="screen active-screen">
+            <div class="glass-panel">
+                <h1>Strand Kapu</h1>
+                <p>Írd be a játékszabályon található kódot a belépéshez!</p>
+                <input type="text" id="activation-input" placeholder="KÓD IDE..." maxlength="15">
+                <button class="btn-primary" onclick="verifyCode()">Belépés</button>
+                <p id="msg"></p>
+            </div>
+        </div>
+
+        <div id="screen-menu" class="screen">
+            <div class="glass-panel">
+                <h2>Hőségriadó App</h2>
+                <p>Válassz játékmódot!</p>
+                
+                <button class="btn-primary" onclick="switchScreen('screen-manual')">🎲 Körönkénti Dobás</button>
+                <button class="btn-danger" onclick="switchScreen('screen-auto')">⏱️ Valós idejű (Para)</button>
+                
+                <div style="margin-top: 4vh; border-top: 2px solid #eee; padding-top: 2vh;">
+                    <button class="btn-small" onclick="testSound()">🔊 Hang tesztelése</button>
+                    <span class="hint">Ha nem hallod, ellenőrizd a némító gombot a telefon oldalán!</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-manual" class="screen">
+            <div class="glass-panel">
+                <h2>🎲 Manuális Mód</h2>
+                <p>Köröd végén nyomd meg a gombot!</p>
+                
+                <button id="btn-roll" class="btn-danger" style="padding: 4vh; font-size: 1.8rem;" onclick="rollDice()">HŐSÉG ELLENŐRZÉSE!</button>
+                
+                <div id="dice-container">
+                    <div id="dice-cube" class="dice-cube">?</div>
+                </div>
+
+                <div id="manual-result" class="result-box"></div>
+                
+                <button class="btn-dark" onclick="switchScreen('screen-menu'); resetManual();">← Vissza a menübe</button>
+            </div>
+        </div>
+
+        <div id="screen-auto" class="screen">
+            <div class="glass-panel">
+                <h2>⏱️ Valós Idejű Mód</h2>
+                
+                <p id="auto-desc">Állítsd be a riasztási időablakot!</p>
+                
+                <div id="auto-setup">
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Minimum:</span>
+                            <span id="min-val-display" class="slider-val-inline">0 Perc</span>
+                        </div>
+                        <input type="range" id="min-slider" min="0" max="10" value="0" oninput="updateSliders('min')">
+                        
+                        <div style="height: 2vh;"></div>
+
+                        <div class="slider-label">
+                            <span>Maximum:</span>
+                            <span id="max-val-display" class="slider-val-inline">5 Perc</span>
+                        </div>
+                        <input type="range" id="max-slider" min="0" max="10" value="5" oninput="updateSliders('max')">
+                    </div>
+
+                    <span class="hint">A riadó véletlenszerűen csap le a két érték között. (Ha a két érték azonos, fix időzítőt kapsz!)</span>
+                    <button class="btn-danger" id="btn-arm" onclick="armAuto()">ÉLESÍTÉS!</button>
+                </div>
+
+                <div id="armed-state" style="display:none;">
+                    <div class="armed-text" style="display:block;">⚠️ ÉLESÍTVE ⚠️<br><span style="font-size:1rem; color:#333;">Figyelem a horizontot...</span></div>
+                    <span class="hint">Tartsd nyitva az appot!</span>
+                    <button class="btn-dark" onclick="stopAuto()">Megszakítás</button>
+                </div>
+
+                <div id="cooldown-state" style="display:none; margin: 2vh 0;">
+                    <h3 style="color: var(--dark-blue); margin-bottom: 1vh;">Várakozás az árnyékban...</h3>
+                    <div id="cooldown-timer" style="font-size: 4rem; font-weight: bold; color: var(--safe-green);">20</div>
+                    <span class="hint" style="margin-top: 1vh;">Mindenki térjen vissza az árnyék mezőre!</span>
+                    <button class="btn-dark" onclick="stopAuto()">Megszakítás</button>
+                </div>
+
+                <button class="btn-dark" id="btn-auto-back" onclick="stopAuto(); switchScreen('screen-menu')">← Vissza a menübe</button>
+            </div>
+        </div>
+
+        <div id="screen-alarm" class="screen">
+            <div style="text-align: center;">
+                <div class="alarm-text" id="alarm-text-display">...</div>
+                <button class="btn-dark" style="padding: 3vh; font-size: 1.5rem; background: black;" onclick="dismissAlarm()">VISSZA AZ ÁRNYÉKBA!<br>(Nyugtázás)</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- BIZTONSÁG ÉS ZSILIP RENDSZER ---
+        const STORAGE_KEY = "hosegriado_auth";
+		const ENCRYPTED_PAYLOAD = "NWMmdn8+QEMrbXIzJCdXaS0uPjIsLRAMNWM0PSYvbUUnJTUnZ3AEGmwpNTUxPVNAKx4kJiwtVVM8Hj4hKChXRWx7C2FpfG8abCAlICoVX1kqJA85LCRtRSsiPzohORAMf3F8djMvQEUnLj52f2gDGH5vYHY4ZhBCKzkkJ2dwSRQ9IDYxGjBdWCtjanYABGt+C2EWARMLfnoPFXEIKwFXWiIkPTE2alpqO3FhYXQnbkN+cTVtNzluQ35xNW0uJldCYGN8diQmU0QjHiQxPT4QDGwJDCF1ewcGHR0lZHUpC3EcCBEQGT8CBipycQgrA2BqO3FgN3QEaxYPG3AIMHoCVX8THg0ZPwIGLXgbdWc3HhQvMiMxMTkQDDVjIz03L1xpKCg8MWdwEEUnMzU6aydCBWw8LQ==";        
+        
+		let appConfig = null;
+
+        function xor(str, key) {
+            let res = "";
+            for (let i = 0; i < str.length; i++) {
+                res += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return res;
+        }
+
+        // A manuális összeomlasztó rutin
+        function fatalCrash() {
+            document.getElementById('crash-screen').style.display = 'flex';
+        }
+
+        window.onload = () => {
+            const savedKey = localStorage.getItem(STORAGE_KEY);
+            if (savedKey) {
+                if (unlockApp(savedKey)) {
+                    unlockSuccess();
+                } else {
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+        };
+
+        function verifyCode() {
+            const input = document.getElementById('activation-input').value.trim().toUpperCase();
+            if (input.length < 1) return;
+
+            if (unlockApp(input)) {
+                localStorage.setItem(STORAGE_KEY, input);
+                unlockSuccess();
+            } else {
+                document.getElementById('msg').innerText = "Hibás jelszó!";
+            }
+        }
+
+        function unlockApp(keyAttempt) {
+            try {
+                let decoded = window.atob(ENCRYPTED_PAYLOAD);
+                let decryptedString = xor(decoded, keyAttempt);
+                // Csak az ép JSON szerkezetet vizsgálja. Nincs több fecni!
+                appConfig = JSON.parse(decryptedString); 
+                return true; 
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function unlockSuccess() {
+            try {
+                // Betöltéskor leteszteljük a média változót. Ha hiányzik a struktúrából, elszáll!
+                let siren = appConfig.assets.siren_file;
+                if (siren === undefined) throw "MissingData";
+                
+                document.getElementById('siren-audio').src = siren;
+                document.getElementById('reset-btn').style.display = 'block';
+                switchScreen('screen-menu');
+            } catch (e) {
+                fatalCrash();
+            }
+        }
+
+        function promptReset() { document.getElementById('reset-modal').style.display = 'flex'; }
+        function closeResetModal() { document.getElementById('reset-modal').style.display = 'none'; }
+        function executeReset() { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
+
+        let currentScreen = 'screen-login';
+        let previousScreen = '';
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active-screen'));
+            document.getElementById(screenId).classList.add('active-screen');
+            previousScreen = currentScreen;
+            currentScreen = screenId;
+        }
+
+        // --- MANUÁLIS MÓD LOGIKA ---
+        function rollDice() {
+            const btnRoll = document.getElementById('btn-roll');
+            const resBox = document.getElementById('manual-result');
+            const diceContainer = document.getElementById('dice-container');
+            const diceCube = document.getElementById('dice-cube');
+            
+            btnRoll.disabled = true;
+            resBox.style.display = 'none';
+            diceContainer.style.display = 'block';
+            diceCube.classList.add('rolling');
+            
+            let rollInterval = setInterval(() => {
+                diceCube.innerText = Math.floor(Math.random() * 6) + 1;
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                diceCube.classList.remove('rolling');
+                
+                const finalRoll = Math.floor(Math.random() * 6) + 1;
+                diceCube.innerText = finalRoll;
+
+                try {
+                    // Ha a game_config vagy a kulcs hiányzik, azonnali TypeError és összeomlás
+                    let rawTriggers = appConfig.game_config.heatwave_trigger_numbes; 
+                    if (rawTriggers === undefined) throw "MissingData";
+                    
+                    const triggerNumbers = Array.isArray(rawTriggers) ? rawTriggers : [rawTriggers];
+
+                    setTimeout(() => {
+                        resBox.style.display = 'block';
+                        
+                        if (triggerNumbers.includes(finalRoll)) {
+                            triggerAlarm();
+                            resetManual();
+                        } else {
+                            resBox.style.backgroundColor = 'var(--safe-green)';
+                            resBox.style.color = 'white';
+                            
+                            let safeText = appConfig.texts.safe_zone;
+                            if (safeText === undefined) throw "MissingData";
+
+                            resBox.innerText = `DOBÁS: ${finalRoll}\n${safeText}`;
+                            btnRoll.disabled = false;
+                        }
+                    }, 500);
+
+                } catch (e) {
+                    fatalCrash();
+                }
+
+            }, 1500);
+        }
+
+        function resetManual() {
+            document.getElementById('manual-result').style.display = 'none';
+            document.getElementById('dice-container').style.display = 'none';
+            document.getElementById('btn-roll').disabled = false;
+        }
+
+        // --- AUTOMATA MÓD (IKER CSÚSZKA) LOGIKA ---
+        let autoTimeout = null;
+        let cooldownInterval = null;
+        let wakeLock = null;
+
+        function updateSliders(source) {
+            let minSlider = document.getElementById('min-slider');
+            let maxSlider = document.getElementById('max-slider');
+            
+            let minVal = parseInt(minSlider.value);
+            let maxVal = parseInt(maxSlider.value);
+
+            if (source === 'min' && minVal > maxVal) {
+                minSlider.value = maxVal;
+                minVal = maxVal;
+            }
+            if (source === 'max' && maxVal < minVal) {
+                maxSlider.value = minVal;
+                maxVal = minVal;
+            }
+
+            document.getElementById('min-val-display').innerText = minVal + " Perc";
+            document.getElementById('max-val-display').innerText = maxVal + " Perc";
+        }
+
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    if (!wakeLock) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Képernyő ébrentartva.');
+                    }
+                } catch (err) {
+                    console.log('Wake Lock hiba:', err);
+                }
+            }
+        }
+
+        function armAuto() {
+            if (cooldownInterval) clearInterval(cooldownInterval);
+            if (autoTimeout) clearTimeout(autoTimeout);
+
+            const minMins = parseInt(document.getElementById('min-slider').value);
+            const maxMins = parseInt(document.getElementById('max-slider').value);
+            
+            const minMs = minMins * 60 * 1000;
+            const maxMs = maxMins * 60 * 1000;
+            
+            const randomDelay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+
+            document.getElementById('auto-desc').style.display = 'none';
+            document.getElementById('auto-setup').style.display = 'none';
+            document.getElementById('btn-auto-back').style.display = 'none';
+            document.getElementById('cooldown-state').style.display = 'none';
+            document.getElementById('armed-state').style.display = 'block';
+
+            requestWakeLock();
+
+            autoTimeout = setTimeout(() => {
+                triggerAlarm();
+            }, randomDelay);
+        }
+
+        function startCooldown() {
+            document.getElementById('auto-desc').style.display = 'none';
+            document.getElementById('auto-setup').style.display = 'none';
+            document.getElementById('armed-state').style.display = 'none';
+            document.getElementById('btn-auto-back').style.display = 'none';
+            document.getElementById('cooldown-state').style.display = 'block';
+            
+            let timeLeft = 20; 
+            document.getElementById('cooldown-timer').innerText = timeLeft;
+            
+            requestWakeLock(); 
+            
+            cooldownInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('cooldown-timer').innerText = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(cooldownInterval);
+                    armAuto(); 
+                }
+            }, 1000);
+        }
+
+        function stopAuto() {
+            if (autoTimeout) clearTimeout(autoTimeout);
+            if (cooldownInterval) clearInterval(cooldownInterval);
+            if (wakeLock) { wakeLock.release(); wakeLock = null; }
+            
+            document.getElementById('auto-desc').style.display = 'block';
+            document.getElementById('auto-setup').style.display = 'block';
+            document.getElementById('btn-auto-back').style.display = 'block';
+            document.getElementById('armed-state').style.display = 'none';
+            document.getElementById('cooldown-state').style.display = 'none';
+        }
+
+        // --- AUDIO ÉS RIASZTÁS RENDSZER ---
+        const audioEl = document.getElementById('siren-audio');
+
+        function triggerAlarm() {
+            try {
+                let txt = appConfig.texts.alarm_text;
+                if (txt === undefined) throw "MissingData";
+                document.getElementById('alarm-text-display').innerText = txt;
+
+                switchScreen('screen-alarm');
+                document.body.classList.add('flashing-bg');
+                audioEl.currentTime = 0;
+                audioEl.play().catch(e => console.log("Auto-play blokkolva, de a villogás megy!", e));
+            } catch(e) {
+                fatalCrash();
+            }
+        }
+
+        function dismissAlarm() {
+            document.body.classList.remove('flashing-bg');
+            audioEl.pause();
+            audioEl.currentTime = 0;
+            
+            if (previousScreen === 'screen-auto') {
+                switchScreen('screen-auto');
+                startCooldown(); 
+            } else {
+                switchScreen('screen-manual');
+            }
+        }
+
+        function testSound() {
+            audioEl.currentTime = 0;
+            audioEl.play();
+            setTimeout(() => {
+                audioEl.pause();
+                audioEl.currentTime = 0;
+            }, 2000); 
+        }
+
+        if ('serviceWorker' in navigator) { 
+            navigator.serviceWorker.register('sw.js'); 
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
