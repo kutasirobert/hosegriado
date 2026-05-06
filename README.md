@@ -1,0 +1,2 @@
+# hosegriado
+Hőségriadó társasjáték melléklet
